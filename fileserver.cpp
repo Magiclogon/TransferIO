@@ -13,8 +13,14 @@ void FileServer::startServer(quint16 port, const QStringList &files) {
     }
     else {
         qDebug() << "Server started on port: " << port;
+        isRunning = true;
         sharedFiles = files;
     }
+}
+
+void FileServer::closeServer() {
+    this->close();
+    isRunning = false;
 }
 
 void FileServer::incomingConnection(qintptr socketDescriptor) {
@@ -68,6 +74,10 @@ void FileServer::handleRequest(QTcpSocket *socket) {
 
 
     socket->disconnectFromHost();
+}
+
+bool FileServer::getIsRunning() {
+    return isRunning;
 }
 
 

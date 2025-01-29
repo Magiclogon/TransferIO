@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="">
+        <file>assets/play-button.png</file>
+        <file>assets/stop.png</file>
+        <file>assets/delete.png</file>
+    </qresource>
+</RCC>

@@ -3,8 +3,11 @@
 
 #include <QMainWindow>
 #include <QListWidget>
+#include <QStandardItemModel>
+#include <QScrollArea>
 #include <QMap>
 #include <QListWidgetItem>
+#include <QTableView>
 #include "fileserver.h"
 #include "addserverdialog.h"
 
@@ -21,12 +24,14 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    void serverStatusLabel(QLabel *serverStatus);
+
 private slots:
     void addServer();
     void removeServer(quint16 port);
     void addFile();
     void removeFile();
-    void loadFiles(QListWidgetItem *current, QListWidgetItem *previous);
+    void loadFiles(const QModelIndex &current, const QModelIndex &previous);
 
 private:
     Ui::MainWindow *ui;
@@ -37,6 +42,17 @@ private:
         quint16 serverPort;
         QStringList *serverFiles;
     };
+
+    // Variables for servers table view.
+    QTableView *serverTable;
+    QStandardItemModel *serverModel;
+    QScrollArea *fileScrollArea;
+    QVBoxLayout *fileContainerLayout;
+    QWidget *fileContainer;
+
+    // Variables for files table view.
+    QTableView *fileTable;
+    QStandardItemModel *fileModel;
 
     QMap<quint16, ServerInfo> servers;
     QListWidget *serverList;
