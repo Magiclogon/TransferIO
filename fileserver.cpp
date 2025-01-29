@@ -4,15 +4,59 @@
 #include <QStringList>
 #include <QFileInfo>
 #include <QDebug>
+#include <QThreadPool>
+#include <QRunnable>
 
-FileServer::FileServer(QObject *parent) : QTcpServer(parent) {}
-
-void FileServer::startServer(quint16 port, const QStringList &files) {
-    if(!this->listen(QHostAddress::Any, port)) {
-        qDebug() << "Couldn't start server";
+class FileTransferTask : public QRunnable {
+public:
+    FileTransferTask(QTcpSocket *socket, const QString &filePath, const QString &fileName, const qint64 fileSize)
+        : socket(socket), filePath(filePath), fileName(fileName), fileSize(fileSize) {
+        // Ensure the socket is not deleted while the task is running
+        socket->setParent(nullptr);
     }
-    else {
-        qDebug() << "Server started on port: " << port;
+
+    void run() override {
+        QFile file(filePath);
+        if (file.open(QIODevice::ReadOnly)) {
+            QString header = "HTTP/1.1 200 OK\r\n";
+            header += "Content-Disposition: attachment; filename=\"" + fileName + "\"\r\n\r\n";
+            socket->write(header.toUtf8());
+
+            QByteArray buffer;
+            while (!file.atEnd() && socket->state() == QAbstractSocket::ConnectedState) {
+
+                buffer = file.read(CHUNK_SIZE);
+                socket->write(buffer);
+                socket->waitForBytesWritten();
+
+            }
+            file.close();
+        } else {
+            QString header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
+            socket->write(header.toUtf8());
+        }
+
+        // Clean up the socket
+        socket->disconnectFromHost();
+        socket->deleteLater();
+    }
+
+private:
+    QTcpSocket *socket;
+    QString filePath;
+    QString fileName;
+    qint64 fileSize;
+};
+
+FileServer::FileServer(QObject *parent) : QTcpServer(parent) {
+    QThreadPool::globalInstance()->setMaxThreadCount(10); // Adjust thread pool size
+}
+
+void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
+    if (!this->listen(QHostAddress::Any, port)) {
+        qDebug() << "Couldn't start server";
+    } else {
+        qDebug() << "Server started on port:" << port;
         isRunning = true;
         sharedFiles = files;
     }
@@ -30,68 +74,113 @@ void FileServer::incomingConnection(qintptr socketDescriptor) {
     connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
         handleRequest(socket);
     });
+
+    connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
 }
 
 void FileServer::handleRequest(QTcpSocket *socket) {
     QString request = socket->readAll();
     qDebug() << request;
 
-    if(request.startsWith("GET /file/")) {
+    // If user requests a file
+    if (request.startsWith("GET /file/")) {
         QString fileName = request.split(' ')[1].mid(6);
-        QString filePath = sharedFiles.filter(fileName).first();
-        qDebug() << "Filepath: " << fileName;
+        QString filePath = findFilePath(fileName, *sharedFiles);
+
+        QFileInfo fileInfo(filePath);
+        qint64 fileSize = fileInfo.size();
+
+        // Increasing the download count.
+        increaseDownloadCount(filePath, sharedFiles);
+
+        qDebug() << "Filepath: " << filePath;
 
         QFile file(filePath);
-        if(file.open(QIODevice::ReadOnly)) {
-            QByteArray fileData = file.readAll();
-
-            QString header = "HTTP/1.1 200 OK\r\nContent-Disposition: attachment; filename=\"" + fileName + "\"\r\n\r\n";
+        if (file.open(QIODevice::ReadOnly)) {
+            QString header = "HTTP/1.1 200 OK\r\n";
+            header += "Content-Disposition: attachment; filename=\"" + fileName + "\"\r\n\r\n";
             socket->write(header.toUtf8());
-            socket->write(fileData);
-        }
 
-        else {
+            QByteArray buffer;
+            while (!file.atEnd() && socket->state() == QAbstractSocket::ConnectedState) {
+
+                buffer = file.read(CHUNK_SIZE);
+                socket->write(buffer);
+                socket->waitForBytesWritten();
+
+            }
+            file.close();
+        } else {
             QString header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
             socket->write(header.toUtf8());
         }
 
+        // Clean up the socket
+        socket->disconnectFromHost();
+        socket->deleteLater();
     }
 
-    else if(request.startsWith("GET")) {
+    // If user requests home page.
+    else if (request.startsWith("GET")) {
         QString response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-        response += "<html><body><h1>List of available files</h1><ul>";
+        response += "<!DOCTYPE html>"
+                    "<html lang='en'>"
+                    "<head>"
+                    "<meta charset='UTF-8'>"
+                    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+                    "<title>Available Files</title>"
+                    "<style>"
+                    "body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; text-align: center; padding: 20px; }"
+                    "h1 { color: #333; }"
+                    "table { width: 80%; margin: 20px auto; border-collapse: collapse; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }"
+                    "th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }"
+                    "th { background: #007bff; color: white; }"
+                    "tr:nth-child(even) { background: #f2f2f2; }"
+                    "tr:hover { background: #ddd; }"
+                    "a { text-decoration: none; color: #007bff; font-weight: bold; }"
+                    "a:hover { text-decoration: underline; }"
+                    "</style>"
+                    "</head>"
+                    "<body>"
+                    "<h1>List of Available Files</h1>"
+                    "<table>"
+                    "<tr><th>File Name</th><th>Size</th><th>Download</th></tr>";
 
-        for(QString &filePath : sharedFiles) {
-            QFileInfo fileInfo(filePath);
+        for (ServerFile &file : *sharedFiles) {
+            QFileInfo fileInfo(file.filePath);
             QString fileName = fileInfo.fileName();
-            response += QString("<li><a href='/file/%1'>%2</a></li>").arg(fileName).arg(fileName);
+            qint32 fileSize = file.fileSize / 1024;
+            response += QString("<tr><td>%1</td><td>%2</td><td><a href='/file/%3'>Download</a></td></tr>")
+                            .arg(fileName)
+                            .arg(QString::number(fileSize) + " kB")
+                            .arg(fileName);
         }
 
-        response += "</ul></body></html>";
+        response += "</table></body></html>";
         socket->write(response.toUtf8());
+        socket->disconnectFromHost();
     }
 
-
-
-    socket->disconnectFromHost();
 }
 
 bool FileServer::getIsRunning() {
     return isRunning;
 }
 
+QString FileServer::findFilePath(QString fileName, QList<ServerFile> sharedFiles) {
+    for(ServerFile &file : sharedFiles) {
+        if(file.filePath.contains(fileName)) {
+            return file.filePath;
+        }
+    }
+    return QString("");
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void FileServer::increaseDownloadCount(QString filePath, QList<ServerFile> *sharedFiles) {
+    for(ServerFile &file : *sharedFiles) {
+        if(file.filePath == filePath) {
+            file.numberDownloads ++;
+            break;
+        }
+    }
+}

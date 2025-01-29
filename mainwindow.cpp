@@ -21,6 +21,16 @@
 #include <QWidget>
 #include <QSignalMapper>
 
+bool existsInList(const QString &filePath, const QList<ServerFile> &serverFiles) {
+    for (const ServerFile &file : serverFiles) {
+        if (file.filePath == filePath) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
@@ -109,7 +119,7 @@ MainWindow::MainWindow(QWidget *parent)
     serverLayout->addWidget(serverTable);
     serverLayout->addWidget(addServerButton);
 
-    // Right section: File List
+    // Right section: ServerFile List
     // Inside your MainWindow constructor, update the file section to include a QTableView:
     QGroupBox *fileGroup = new QGroupBox("Files", this);
     QVBoxLayout *fileLayout = new QVBoxLayout(fileGroup);
@@ -117,7 +127,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Create a QTableView for the file list
     fileTable = new QTableView(this);
     fileModel = new QStandardItemModel(this);
-    fileModel->setHorizontalHeaderLabels({"File Name", "Size", "Status", "Actions"});
+    fileModel->setHorizontalHeaderLabels({"File Name", "Size", "Number of downloads"});
     fileTable->setModel(fileModel);
     fileTable->horizontalHeader()->setStretchLastSection(true);
     fileTable->verticalHeader()->hide();
@@ -136,7 +146,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Add the file section to the splitter
     splitter->addWidget(serverGroup);
     splitter->addWidget(fileGroup);
-    splitter->setStretchFactor(0, 17);
+    splitter->setStretchFactor(0, 23);
     splitter->setStretchFactor(1, 45);
 
     // Add the main layout to the central widget
@@ -169,7 +179,7 @@ void MainWindow::addServer() {
 
         // Creating the structure and adding it to the map.
         FileServer *server = new FileServer(this);
-        QStringList *serverFiles = new QStringList({});
+        QList<ServerFile> *serverFiles = new QList<ServerFile>();
 
         ServerInfo info;
         info.fileServer = server;
@@ -210,7 +220,7 @@ void MainWindow::addServer() {
         serverTable->setIndexWidget(serverModel->index(serverModel->rowCount() - 1, 3), actionWidget);
 
         connect(runBtn, &QToolButton::clicked, this, [this, info, runBtn, stopBtn, serverStatusLabel]() {
-            info.fileServer->startServer(info.serverPort, *(info.serverFiles));
+            info.fileServer->startServer(info.serverPort, info.serverFiles);
             qDebug() << "STARTED " << info.serverName << " ON PORT " << info.serverPort;
             runBtn->setEnabled(false);
             stopBtn->setEnabled(true);
@@ -265,15 +275,21 @@ void MainWindow::addFile() {
 
             // Update the server files list
             for (const QString &fileToAdd : filesToAdd) {
-                if (!info.serverFiles->contains(fileToAdd)) {
-                    info.serverFiles->append(fileToAdd);
+                if (!existsInList(fileToAdd, *(info.serverFiles))) {
+                    QFileInfo fileInfo(fileToAdd);
+
+                    ServerFile fileAdded;
+                    fileAdded.filePath = fileToAdd;
+                    fileAdded.fileSize = fileInfo.size();
+                    fileAdded.numberDownloads = 0;
+
+                    info.serverFiles->append(fileAdded);
 
                     // Add the file to the table model
                     QList<QStandardItem*> rowItems;
                     rowItems << new QStandardItem(QFileInfo(fileToAdd).fileName())
                              << new QStandardItem(QString::number(QFileInfo(fileToAdd).size()))
-                             << new QStandardItem("Ready")
-                             << new QStandardItem("Remove");
+                             << new QStandardItem(QString::number(0));
 
                     // Append to the fileModel
                     fileModel->appendRow(rowItems);
@@ -303,13 +319,13 @@ void MainWindow::loadFiles(const QModelIndex &current, const QModelIndex &previo
             ServerInfo info = servers[port];
 
             // Add the files from the server to the fileModel
-            for (const QString &filePath : *(info.serverFiles)) {
-                QFileInfo fileInfo(filePath);
+            for (const ServerFile &file : *(info.serverFiles)) {
+                QFileInfo fileInfo(file.filePath);
                 QList<QStandardItem*> rowItems;
                 rowItems << new QStandardItem(fileInfo.fileName())
                          << new QStandardItem(QString::number(fileInfo.size() / 1024) + "kB")
-                         << new QStandardItem("Ready")
-                         << new QStandardItem("Remove");
+                         << new QStandardItem(QString::number(file.numberDownloads));
+
 
                 fileModel->appendRow(rowItems);
             }

@@ -10,12 +10,15 @@
 #include <QTableView>
 #include "fileserver.h"
 #include "addserverdialog.h"
+#include "file.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
 }
 QT_END_NAMESPACE
+
+
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -40,7 +43,7 @@ private:
         FileServer *fileServer;
         QString serverName;
         quint16 serverPort;
-        QStringList *serverFiles;
+        QList<ServerFile> *serverFiles;
     };
 
     // Variables for servers table view.
@@ -57,6 +60,7 @@ private:
     QMap<quint16, ServerInfo> servers;
     QListWidget *serverList;
     QListWidget *fileList;
+
 };
 
 #endif // MAINWINDOW_H

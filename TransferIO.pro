@@ -16,6 +16,7 @@ SOURCES += \
 
 HEADERS += \
     addserverdialog.h \
+    file.h \
     fileserver.h \
     mainwindow.h
 
