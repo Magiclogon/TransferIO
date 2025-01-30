@@ -5,12 +5,14 @@
 #include <QListWidget>
 #include <QStandardItemModel>
 #include <QScrollArea>
+#include <QGroupBox>
 #include <QMap>
 #include <QListWidgetItem>
 #include <QTableView>
 #include "fileserver.h"
 #include "addserverdialog.h"
 #include "file.h"
+#include "aboutdialog.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -32,9 +34,18 @@ public:
 private slots:
     void addServer();
     void removeServer(quint16 port);
+    void removeFileAt(quint16 port, int fileIndex);
     void addFile();
-    void removeFile();
+    void refreshFiles();
     void loadFiles(const QModelIndex &current, const QModelIndex &previous);
+    void updateServerStatus(bool isRunning, QLabel *statusLabel, QToolButton *runBtn, QToolButton *stopButton);
+
+    // Menu Bar Actions
+    void showAboutDialog();
+    void startAllServers();
+    void stopAllServers();
+    void toggleServersList();
+    void toggleFilesList();
 
 private:
     Ui::MainWindow *ui;
@@ -45,6 +56,10 @@ private:
         quint16 serverPort;
         QList<ServerFile> *serverFiles;
     };
+
+    // Groups
+    QGroupBox *serverGroup;
+    QGroupBox *fileGroup;
 
     // Variables for servers table view.
     QTableView *serverTable;

@@ -7,6 +7,7 @@
 #include <QThreadPool>
 #include <QRunnable>
 
+/*
 class FileTransferTask : public QRunnable {
 public:
     FileTransferTask(QTcpSocket *socket, const QString &filePath, const QString &fileName, const qint64 fileSize)
@@ -48,8 +49,11 @@ private:
     qint64 fileSize;
 };
 
+*/
+
 FileServer::FileServer(QObject *parent) : QTcpServer(parent) {
     QThreadPool::globalInstance()->setMaxThreadCount(10); // Adjust thread pool size
+    isRunning = false;
 }
 
 void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
@@ -58,6 +62,7 @@ void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
     } else {
         qDebug() << "Server started on port:" << port;
         isRunning = true;
+        emit runningStatusChanged(isRunning);
         sharedFiles = files;
     }
 }
@@ -65,6 +70,7 @@ void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
 void FileServer::closeServer() {
     this->close();
     isRunning = false;
+    emit runningStatusChanged(isRunning);
 }
 
 void FileServer::incomingConnection(qintptr socketDescriptor) {
@@ -102,6 +108,7 @@ void FileServer::handleRequest(QTcpSocket *socket) {
             socket->write(header.toUtf8());
 
             QByteArray buffer;
+            isTransferring = true;
             while (!file.atEnd() && socket->state() == QAbstractSocket::ConnectedState) {
 
                 buffer = file.read(CHUNK_SIZE);
@@ -109,6 +116,7 @@ void FileServer::handleRequest(QTcpSocket *socket) {
                 socket->waitForBytesWritten();
 
             }
+            isTransferring = false;
             file.close();
         } else {
             QString header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
@@ -149,7 +157,7 @@ void FileServer::handleRequest(QTcpSocket *socket) {
         for (ServerFile &file : *sharedFiles) {
             QFileInfo fileInfo(file.filePath);
             QString fileName = fileInfo.fileName();
-            qint32 fileSize = file.fileSize / 1024;
+            qint64 fileSize = file.fileSize / 1024;
             response += QString("<tr><td>%1</td><td>%2</td><td><a href='/file/%3'>Download</a></td></tr>")
                             .arg(fileName)
                             .arg(QString::number(fileSize) + " kB")
@@ -161,10 +169,6 @@ void FileServer::handleRequest(QTcpSocket *socket) {
         socket->disconnectFromHost();
     }
 
-}
-
-bool FileServer::getIsRunning() {
-    return isRunning;
 }
 
 QString FileServer::findFilePath(QString fileName, QList<ServerFile> sharedFiles) {
@@ -183,4 +187,12 @@ void FileServer::increaseDownloadCount(QString filePath, QList<ServerFile> *shar
             break;
         }
     }
+}
+
+bool FileServer::getIsRunning() {
+    return isRunning;
+}
+
+bool FileServer::getIsTransferring() {
+    return isTransferring;
 }

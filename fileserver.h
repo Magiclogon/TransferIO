@@ -16,13 +16,18 @@ class FileServer : public QTcpServer
         QList<ServerFile> *sharedFiles;
         void closeServer();
         bool getIsRunning();
+        bool getIsTransferring();
+
+    signals:
+        void runningStatusChanged(bool running);
 
     protected:
         void incomingConnection(qintptr socketDescriptor) override;
 
     private:
-        void handleRequest(QTcpSocket *socket);
         bool isRunning;
+        bool isTransferring;
+        void handleRequest(QTcpSocket *socket);
         QString findFilePath(QString fileName, QList<ServerFile> sharedFiles);
         void increaseDownloadCount(QString filePath, QList<ServerFile> *sharedFiles);
 };

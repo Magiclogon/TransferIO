@@ -95,13 +95,63 @@ MainWindow::MainWindow(QWidget *parent)
         }
     )");
 
+    // Adding the menu bar
+    QMenuBar *menuBar = new QMenuBar(this);
+    setMenuBar(menuBar);
+
+    // Add the file menu.
+    QMenu *fileMenu = menuBar->addMenu("&File");
+    QAction *addServerAction = new QAction("Add Server", this);
+    fileMenu->addAction(addServerAction);
+    connect(addServerAction, &QAction::triggered, this, &MainWindow::addServer);
+
+    // Add the servers menu.
+    QMenu *serversMenu = menuBar->addMenu("&Servers");
+    QAction *startAllServersAction = new QAction("Start All Servers", this);
+    serversMenu->addAction(startAllServersAction);
+    connect(startAllServersAction, &QAction::triggered, this, &MainWindow::startAllServers);
+
+    QAction *stopAllServersAction = new QAction("Stop All Servers", this);
+    serversMenu->addAction(stopAllServersAction);
+    connect(stopAllServersAction, &QAction::triggered, this, &MainWindow::stopAllServers);
+
+    // Add the view menu
+    QMenu *viewMenu = menuBar->addMenu("&View");
+    QAction *toggleServersListAction = new QAction("Toggle Servers List");
+    toggleServersListAction->setCheckable(true);
+    toggleServersListAction->setChecked(true);
+    viewMenu->addAction(toggleServersListAction);
+    connect(toggleServersListAction, &QAction::triggered, this, [this, toggleServersListAction]() {
+        toggleServersListAction->setChecked(toggleServersListAction->isChecked() ? true : false);
+        toggleServersList();
+    });
+
+    QAction *toggleFilesListAction = new QAction("Toggle Files List");
+    toggleFilesListAction->setCheckable(true);
+    toggleFilesListAction->setChecked(true);
+    viewMenu->addAction(toggleFilesListAction);
+    connect(toggleFilesListAction, &QAction::triggered, this, [this, toggleFilesListAction]() {
+        toggleFilesListAction->setChecked(toggleFilesListAction->isChecked() ? true : false);
+        toggleFilesList();
+    });
+
+    // Add the help menu
+    QMenu *helpMenu = menuBar->addMenu("&Help");
+    QAction *aboutAction = new QAction("About", this);
+    helpMenu->addAction(aboutAction);
+    connect(aboutAction, &QAction::triggered, this, &MainWindow::showAboutDialog);
+
+    // Content.
+
+    QSpacerItem *spacerH = new QSpacerItem(10, 2, QSizePolicy::Expanding, QSizePolicy::Maximum);
+
     // Main layout
     QSplitter *splitter = new QSplitter(Qt::Horizontal, this);
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
     // Left section: Server List
-    QGroupBox *serverGroup = new QGroupBox("Servers", this);
+    serverGroup = new QGroupBox("Servers", this);
     QVBoxLayout *serverLayout = new QVBoxLayout(serverGroup);
 
     // Use QTableView for the server list
@@ -114,39 +164,47 @@ MainWindow::MainWindow(QWidget *parent)
     serverTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     serverTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
+    QHBoxLayout *serverBtnLayout = new QHBoxLayout(serverGroup);
     QPushButton *addServerButton = new QPushButton("Add Server", this);
 
+    serverBtnLayout->addItem(spacerH);
+    serverBtnLayout->addWidget(addServerButton);
+
     serverLayout->addWidget(serverTable);
-    serverLayout->addWidget(addServerButton);
+    serverLayout->addLayout(serverBtnLayout);
 
     // Right section: ServerFile List
     // Inside your MainWindow constructor, update the file section to include a QTableView:
-    QGroupBox *fileGroup = new QGroupBox("Files", this);
+    fileGroup = new QGroupBox("Files", this);
     QVBoxLayout *fileLayout = new QVBoxLayout(fileGroup);
 
     // Create a QTableView for the file list
     fileTable = new QTableView(this);
     fileModel = new QStandardItemModel(this);
-    fileModel->setHorizontalHeaderLabels({"File Name", "Size", "Number of downloads"});
+    fileModel->setHorizontalHeaderLabels({"File Name", "Size", "Number of downloads", "Action"});
     fileTable->setModel(fileModel);
-    fileTable->horizontalHeader()->setStretchLastSection(true);
+    fileTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     fileTable->verticalHeader()->hide();
     fileTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     fileTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    // Buttons to add/remove files
+    // Button to add files
+    QHBoxLayout *fileBtnLayout = new QHBoxLayout(fileGroup);
     QPushButton *addFileButton = new QPushButton("Add File", this);
-    QPushButton *removeFileButton = new QPushButton("Remove File", this);
+    QPushButton *refreshFilesButton = new QPushButton("Refresh", this);
+
+    fileBtnLayout->addItem(spacerH);
+    fileBtnLayout->addWidget(refreshFilesButton);
+    fileBtnLayout->addWidget(addFileButton);
 
     // Add the QTableView and buttons to the layout
     fileLayout->addWidget(fileTable);
-    fileLayout->addWidget(addFileButton);
-    fileLayout->addWidget(removeFileButton);
+    fileLayout->addLayout(fileBtnLayout);
 
     // Add the file section to the splitter
     splitter->addWidget(serverGroup);
     splitter->addWidget(fileGroup);
-    splitter->setStretchFactor(0, 23);
+    splitter->setStretchFactor(0, 26);
     splitter->setStretchFactor(1, 45);
 
     // Add the main layout to the central widget
@@ -158,6 +216,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(addServerButton, &QPushButton::clicked, this, &MainWindow::addServer);
     connect(serverTable->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &MainWindow::loadFiles);
     connect(addFileButton, &QPushButton::clicked, this, &MainWindow::addFile);
+    connect(refreshFilesButton, &QPushButton::clicked, this, &MainWindow::refreshFiles);
 }
 
 MainWindow::~MainWindow() {
@@ -202,11 +261,14 @@ void MainWindow::addServer() {
         QHBoxLayout *actionLayout = new QHBoxLayout(actionWidget);
         QToolButton *runBtn = new QToolButton(this);
         runBtn->setIcon(QIcon(":/assets/play-button.png"));
+        runBtn->setStyleSheet("background: transparent,; border: none;");
         QToolButton *stopBtn = new QToolButton(this);
         stopBtn->setIcon(QIcon(":/assets/stop.png"));
         stopBtn->setEnabled(false);
+        stopBtn->setStyleSheet("background: transparent,; border: none;");
         QToolButton *removeBtn = new QToolButton(this);
         removeBtn->setIcon(QIcon(":/assets/delete.png"));
+        removeBtn->setStyleSheet("background: transparent,; border: none;");
 
         actionLayout->addItem(spacerH2);
         actionLayout->addWidget(runBtn);
@@ -219,26 +281,18 @@ void MainWindow::addServer() {
         serverTable->setIndexWidget(serverModel->index(serverModel->rowCount() - 1, 2), serverStatusLabel);
         serverTable->setIndexWidget(serverModel->index(serverModel->rowCount() - 1, 3), actionWidget);
 
+        connect(server, &FileServer::runningStatusChanged, this, [this, serverStatusLabel, runBtn, stopBtn](bool isRunning) {
+            updateServerStatus(isRunning, serverStatusLabel, runBtn, stopBtn);
+        });
+
         connect(runBtn, &QToolButton::clicked, this, [this, info, runBtn, stopBtn, serverStatusLabel]() {
             info.fileServer->startServer(info.serverPort, info.serverFiles);
             qDebug() << "STARTED " << info.serverName << " ON PORT " << info.serverPort;
-            runBtn->setEnabled(false);
-            stopBtn->setEnabled(true);
-            qDebug() << info.fileServer->getIsRunning();
-            if(info.fileServer->getIsRunning()) {
-                serverStatusLabel->setText("Running..");
-            }
         });
 
         connect(stopBtn, &QToolButton::clicked, this, [this, info, runBtn, stopBtn, serverStatusLabel]() {
             info.fileServer->closeServer();
             qDebug() << "STOPPED " << info.serverName << " ON PORT " << info.serverPort;
-            runBtn->setEnabled(true);
-            stopBtn->setEnabled(false);
-            qDebug() << info.fileServer->getIsRunning();
-            if(!info.fileServer->getIsRunning()) {
-                serverStatusLabel->setText("Stopped..");
-            }
         });
 
         connect(removeBtn, &QToolButton::clicked, this, [this, info, rowItems]() {
@@ -295,6 +349,13 @@ void MainWindow::addFile() {
                     fileModel->appendRow(rowItems);
                 }
             }
+            qDebug() << servers[port].fileServer->getIsRunning();
+            // If the server isn't transferring any data, restart it now.
+            if(!servers[port].fileServer->getIsTransferring() && servers[port].fileServer->getIsRunning()) {
+
+                servers[port].fileServer->closeServer();
+                servers[port].fileServer->startServer(port, servers[port].serverFiles);
+            }
 
             // Reload the file list in the QTableView
             loadFiles(currentIndex, QModelIndex());
@@ -302,8 +363,25 @@ void MainWindow::addFile() {
     }
 }
 
-void MainWindow::removeFile() {
-    // Placeholder for remove file functionality
+void MainWindow::refreshFiles() {
+    QModelIndex currentIndex = serverTable->currentIndex();
+    loadFiles(currentIndex, QModelIndex());
+}
+
+void MainWindow::removeFileAt(quint16 port, int fileIndex) {
+    if(servers.contains(port)) {
+        ServerInfo &info = servers[port];
+
+        if(fileIndex >= 0 && fileIndex < info.serverFiles->size()) {
+            info.serverFiles->removeAt(fileIndex);
+            fileModel->removeRow(fileIndex);
+
+            if(!info.fileServer->getIsTransferring() && info.fileServer->getIsRunning()) {
+                info.fileServer->closeServer();
+                info.fileServer->startServer(port, info.serverFiles);
+            }
+        }
+    }
 }
 
 void MainWindow::loadFiles(const QModelIndex &current, const QModelIndex &previous) {
@@ -318,6 +396,8 @@ void MainWindow::loadFiles(const QModelIndex &current, const QModelIndex &previo
         if (servers.contains(port)) {
             ServerInfo info = servers[port];
 
+            int i = 0;
+
             // Add the files from the server to the fileModel
             for (const ServerFile &file : *(info.serverFiles)) {
                 QFileInfo fileInfo(file.filePath);
@@ -326,9 +406,74 @@ void MainWindow::loadFiles(const QModelIndex &current, const QModelIndex &previo
                          << new QStandardItem(QString::number(fileInfo.size() / 1024) + "kB")
                          << new QStandardItem(QString::number(file.numberDownloads));
 
-
+                int row = fileModel->rowCount();
                 fileModel->appendRow(rowItems);
+
+                QToolButton *removeFileBtn = new QToolButton(this);
+                removeFileBtn->setIcon(QIcon(":/assets/delete.png"));
+                removeFileBtn->setStyleSheet("background: transparent; border: none;");
+
+                QWidget *actionWidget = new QWidget(this);
+                QHBoxLayout *actionLayout = new QHBoxLayout(actionWidget);
+
+                QSpacerItem *spacerH = new QSpacerItem(10, 2, QSizePolicy::Expanding, QSizePolicy::Maximum);
+                actionLayout->addItem(spacerH);
+                actionLayout->addWidget(removeFileBtn);
+                actionWidget->setLayout(actionLayout);
+
+                connect(removeFileBtn, &QToolButton::clicked, this, [this, port, i]() {
+                    removeFileAt(port, i);
+                });
+
+                i++;
+
+                fileTable->setIndexWidget(fileModel->index(row, 3), actionWidget);
+
             }
         }
     }
+}
+
+void MainWindow::updateServerStatus(bool isRunning, QLabel *statusLabel, QToolButton *runBtn, QToolButton *stopBtn) {
+    if (isRunning) {
+        statusLabel->setText("Running..");
+        runBtn->setEnabled(false);
+        stopBtn->setEnabled(true);
+    } else {
+        statusLabel->setText("Stopped..");
+        runBtn->setEnabled(true);
+        stopBtn->setEnabled(false);
+    }
+}
+
+// Menu Bar functions.
+void MainWindow::showAboutDialog() {
+    AboutDialog aboutDialog(this);
+    aboutDialog.exec();
+}
+
+void MainWindow::startAllServers() {
+    for(auto &server : servers) {
+        if(!server.fileServer->getIsRunning()) {
+            server.fileServer->startServer(server.serverPort, server.serverFiles);
+        }
+    }
+}
+
+void MainWindow::stopAllServers() {
+    for(auto &server : servers) {
+        if(server.fileServer->getIsRunning()) {
+            server.fileServer->closeServer();
+        }
+    }
+}
+
+void MainWindow::toggleServersList() {
+    bool visible = serverGroup->isVisible();
+    serverGroup->setVisible(!visible);
+}
+
+void MainWindow::toggleFilesList() {
+    bool visible = fileGroup->isVisible();
+    fileGroup->setVisible(!visible);
 }

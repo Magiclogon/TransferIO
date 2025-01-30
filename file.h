@@ -5,7 +5,7 @@
 
 struct ServerFile {
     QString filePath;
-    qint32 fileSize;
+    qint64 fileSize;
     qint16 numberDownloads;
 };
 
