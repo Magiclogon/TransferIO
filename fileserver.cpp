@@ -77,6 +77,18 @@ void FileServer::incomingConnection(qintptr socketDescriptor) {
     QTcpSocket *socket = new QTcpSocket(this);
     socket->setSocketDescriptor(socketDescriptor);
 
+    QString clientIp = socket->peerAddress().toString();
+
+    if (clientIp.startsWith("::ffff:")) {
+        clientIp = clientIp.mid(7);
+    }
+
+    if(!authorizedIps.contains(clientIp) && !authorizedIps.isEmpty()) {
+        socket->disconnectFromHost();
+        qDebug() << "Unauthorized: " << clientIp;
+        return;
+    }
+
     connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
         handleRequest(socket);
     });
@@ -195,4 +207,12 @@ bool FileServer::getIsRunning() {
 
 bool FileServer::getIsTransferring() {
     return isTransferring;
+}
+
+QStringList FileServer::getAuthorizedIps() {
+    return authorizedIps;
+}
+
+void FileServer::setAuthorizedIps(QStringList authorized) {
+    authorizedIps = authorized;
 }

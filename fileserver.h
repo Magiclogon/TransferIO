@@ -17,6 +17,8 @@ class FileServer : public QTcpServer
         void closeServer();
         bool getIsRunning();
         bool getIsTransferring();
+        QStringList getAuthorizedIps();
+        void setAuthorizedIps(QStringList authorized);
 
     signals:
         void runningStatusChanged(bool running);
@@ -27,6 +29,8 @@ class FileServer : public QTcpServer
     private:
         bool isRunning;
         bool isTransferring;
+        QStringList authorizedIps;
+
         void handleRequest(QTcpSocket *socket);
         QString findFilePath(QString fileName, QList<ServerFile> sharedFiles);
         void increaseDownloadCount(QString filePath, QList<ServerFile> *sharedFiles);

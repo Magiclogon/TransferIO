@@ -22,7 +22,7 @@ AboutDialog::AboutDialog(QWidget *parent) : QDialog(parent) {
 
     // Information Labels
     QLabel *developerLabel = new QLabel("<b>Developer:</b> Magiclogon / Walid H.");
-    QLabel *versionLabel = new QLabel("<b>Version:</b> 1.0.0");
+    QLabel *versionLabel = new QLabel("<b>Version:</b> 1.1.0");
     QLabel *licenseLabel = new QLabel("<b>License:</b> GNU");
     QLabel *contactLabel = new QLabel("<b>Contact:</b> walidhousni45@gmail.com");
 

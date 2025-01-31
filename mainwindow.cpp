@@ -35,6 +35,9 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
 
+    setWindowTitle("TransferIO");
+    setWindowIcon(QIcon(":/assets/exchange.png"));
+
     // Apply a global stylesheet for better appearance
     this->setStyleSheet(R"(
         QMainWindow {
@@ -92,6 +95,24 @@ MainWindow::MainWindow(QWidget *parent)
         }
         QSplitter::handle:hover {
             background-color: #777;
+        }
+
+        QListWidget {
+            background-color: #1E1E1E;
+            border: 1px solid #333;
+            border-radius: 3px;
+            color: #ffffff;
+            selection-background-color: #565758;
+            selection-color: #ffffff;
+        }
+        QLineEdit {
+            background-color: #1E1E1E;
+            border: 1px solid #333;
+            border-radius: 3px;
+            color: #ffffff;
+            padding: 5px;
+            selection-background-color: #565758;
+            selection-color: #ffffff;
         }
     )");
 
@@ -269,10 +290,14 @@ void MainWindow::addServer() {
         QToolButton *removeBtn = new QToolButton(this);
         removeBtn->setIcon(QIcon(":/assets/delete.png"));
         removeBtn->setStyleSheet("background: transparent,; border: none;");
+        QToolButton *whiteListBtn = new QToolButton(this);
+        whiteListBtn->setIcon(QIcon(":/assets/approved.png"));
+        whiteListBtn->setStyleSheet("background: transparent,; border: none;");
 
         actionLayout->addItem(spacerH2);
         actionLayout->addWidget(runBtn);
         actionLayout->addWidget(stopBtn);
+        actionLayout->addWidget(whiteListBtn);
         actionLayout->addWidget(removeBtn);
         actionLayout->setContentsMargins(0, 0, 0, 0);
         actionWidget->setLayout(actionLayout);
@@ -295,6 +320,10 @@ void MainWindow::addServer() {
             qDebug() << "STOPPED " << info.serverName << " ON PORT " << info.serverPort;
         });
 
+        connect(whiteListBtn, &QToolButton::clicked, this, [this, server]() {
+            addToWhiteList(server);
+        });
+
         connect(removeBtn, &QToolButton::clicked, this, [this, info, rowItems]() {
             removeServer(info.serverPort);
             serverModel->removeRow(serverModel->indexFromItem(rowItems[0]).row());
@@ -308,6 +337,14 @@ void MainWindow::removeServer(quint16 port) {
         server->closeServer();
         servers.remove(port);
         qDebug() << "Removed server on port: " << port;
+    }
+}
+
+void MainWindow::addToWhiteList(FileServer *server) {
+    AuthorizeIpsDialog dialog(this, server->getAuthorizedIps());
+
+    if(dialog.exec() == QDialog::Accepted) {
+        server->setAuthorizedIps(dialog.getAuthorizedIps());
     }
 }
 

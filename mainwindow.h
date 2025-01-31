@@ -13,6 +13,7 @@
 #include "addserverdialog.h"
 #include "file.h"
 #include "aboutdialog.h"
+#include "authorizeipsdialog.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -34,6 +35,7 @@ public:
 private slots:
     void addServer();
     void removeServer(quint16 port);
+    void addToWhiteList(FileServer *server);
     void removeFileAt(quint16 port, int fileIndex);
     void addFile();
     void refreshFiles();
@@ -54,6 +56,7 @@ private:
         FileServer *fileServer;
         QString serverName;
         quint16 serverPort;
+        QStringList authorizedIps;
         QList<ServerFile> *serverFiles;
     };
 

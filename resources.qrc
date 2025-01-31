@@ -1,7 +1,11 @@
 <RCC>
-    <qresource prefix="">
+    <qresource prefix="/">
         <file>assets/play-button.png</file>
         <file>assets/stop.png</file>
         <file>assets/delete.png</file>
+        <file>assets/plus.png</file>
+        <file>assets/minus.png</file>
+        <file>assets/approved.png</file>
+        <file>assets/exchange.png</file>
     </qresource>
 </RCC>

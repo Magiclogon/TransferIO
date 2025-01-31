@@ -11,6 +11,7 @@ CONFIG += c++17
 SOURCES += \
     aboutdialog.cpp \
     addserverdialog.cpp \
+    authorizeipsdialog.cpp \
     fileserver.cpp \
     main.cpp \
     mainwindow.cpp
@@ -18,6 +19,7 @@ SOURCES += \
 HEADERS += \
     aboutdialog.h \
     addserverdialog.h \
+    authorizeipsdialog.h \
     file.h \
     fileserver.h \
     mainwindow.h
