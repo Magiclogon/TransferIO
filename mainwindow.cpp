@@ -312,12 +312,10 @@ void MainWindow::addServer() {
 
         connect(runBtn, &QToolButton::clicked, this, [this, info, runBtn, stopBtn, serverStatusLabel]() {
             info.fileServer->startServer(info.serverPort, info.serverFiles);
-            qDebug() << "STARTED " << info.serverName << " ON PORT " << info.serverPort;
         });
 
         connect(stopBtn, &QToolButton::clicked, this, [this, info, runBtn, stopBtn, serverStatusLabel]() {
             info.fileServer->closeServer();
-            qDebug() << "STOPPED " << info.serverName << " ON PORT " << info.serverPort;
         });
 
         connect(whiteListBtn, &QToolButton::clicked, this, [this, server]() {
@@ -336,7 +334,6 @@ void MainWindow::removeServer(quint16 port) {
         FileServer *server = servers[port].fileServer;
         server->closeServer();
         servers.remove(port);
-        qDebug() << "Removed server on port: " << port;
     }
 }
 
@@ -386,7 +383,6 @@ void MainWindow::addFile() {
                     fileModel->appendRow(rowItems);
                 }
             }
-            qDebug() << servers[port].fileServer->getIsRunning();
             // If the server isn't transferring any data, restart it now.
             if(!servers[port].fileServer->getIsTransferring() && servers[port].fileServer->getIsRunning()) {
 

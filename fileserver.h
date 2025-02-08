@@ -4,6 +4,7 @@
 #include <QTcpServer>
 #include <QStringList>
 #include "file.h"
+#include <QUrl>
 
 #define CHUNK_SIZE 8192
 
@@ -18,6 +19,7 @@ class FileServer : public QTcpServer
         bool getIsRunning();
         bool getIsTransferring();
         QStringList getAuthorizedIps();
+        void setIsRunning(bool running);
         void setAuthorizedIps(QStringList authorized);
 
     signals:
@@ -32,6 +34,7 @@ class FileServer : public QTcpServer
         QStringList authorizedIps;
 
         void handleRequest(QTcpSocket *socket);
+        void handleNotAuthorizedRequest(QTcpSocket *socket);
         QString findFilePath(QString fileName, QList<ServerFile> sharedFiles);
         void increaseDownloadCount(QString filePath, QList<ServerFile> *sharedFiles);
 };

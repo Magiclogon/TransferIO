@@ -58,7 +58,6 @@ FileServer::FileServer(QObject *parent) : QTcpServer(parent) {
 
 void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
     if (!this->listen(QHostAddress::Any, port)) {
-        qDebug() << "Couldn't start server";
     } else {
         qDebug() << "Server started on port:" << port;
         isRunning = true;
@@ -78,14 +77,14 @@ void FileServer::incomingConnection(qintptr socketDescriptor) {
     socket->setSocketDescriptor(socketDescriptor);
 
     QString clientIp = socket->peerAddress().toString();
+    qDebug() << clientIp;
 
     if (clientIp.startsWith("::ffff:")) {
         clientIp = clientIp.mid(7);
     }
 
     if(!authorizedIps.contains(clientIp) && !authorizedIps.isEmpty()) {
-        socket->disconnectFromHost();
-        qDebug() << "Unauthorized: " << clientIp;
+        handleNotAuthorizedRequest(socket);
         return;
     }
 
@@ -98,11 +97,14 @@ void FileServer::incomingConnection(qintptr socketDescriptor) {
 
 void FileServer::handleRequest(QTcpSocket *socket) {
     QString request = socket->readAll();
-    qDebug() << request;
 
     // If user requests a file
     if (request.startsWith("GET /file/")) {
         QString fileName = request.split(' ')[1].mid(6);
+
+        // Converting for files names containing spaces like "photo 1.png" that will be "photo%201.png" in the GET request.
+        fileName = QUrl::fromPercentEncoding(fileName.toUtf8());
+
         QString filePath = findFilePath(fileName, *sharedFiles);
 
         QFileInfo fileInfo(filePath);
@@ -111,8 +113,7 @@ void FileServer::handleRequest(QTcpSocket *socket) {
         // Increasing the download count.
         increaseDownloadCount(filePath, sharedFiles);
 
-        qDebug() << "Filepath: " << filePath;
-
+        // Openning the file and sending it.
         QFile file(filePath);
         if (file.open(QIODevice::ReadOnly)) {
             QString header = "HTTP/1.1 200 OK\r\n";
@@ -130,9 +131,24 @@ void FileServer::handleRequest(QTcpSocket *socket) {
             }
             isTransferring = false;
             file.close();
-        } else {
-            QString header = "HTTP/1.1 404 Not Found\r\n\r\nFile not found.";
-            socket->write(header.toUtf8());
+        }
+        // Can't find the file.
+        else {
+            QString response = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+            QFile notFoundPage(":/assets/pages/not_found.html");
+
+            // Openning the html page.
+            if(notFoundPage.open(QIODevice::ReadOnly)) {
+                QTextStream in(&notFoundPage);
+                QString pageContent = in.readAll();
+                response += pageContent;
+            }
+            else {
+                response += "File not found. Contact your administrator.";
+            }
+
+            socket->write(response.toUtf8());
         }
 
         // Clean up the socket
@@ -180,7 +196,6 @@ void FileServer::handleRequest(QTcpSocket *socket) {
         socket->write(response.toUtf8());
         socket->disconnectFromHost();
     }
-
 }
 
 QString FileServer::findFilePath(QString fileName, QList<ServerFile> sharedFiles) {
@@ -201,6 +216,25 @@ void FileServer::increaseDownloadCount(QString filePath, QList<ServerFile> *shar
     }
 }
 
+void FileServer::handleNotAuthorizedRequest(QTcpSocket *socket) {
+
+    QString response = "HTTP/1.1 403 FORBIDDEN\r\nContent-Type: text/html\r\n\r\n";
+
+    // Openning the forbidden.html page
+    QFile file(":/assets/pages/forbidden.html");
+    if(file.open(QIODevice::ReadOnly)) {
+        QTextStream in(&file);
+        QString pageContent = in.readAll();
+        response += pageContent;
+    } else {
+        response += "Not authorized, contact the administrator.";
+    }
+
+    socket->write(response.toUtf8());
+    socket->waitForBytesWritten();
+    socket->disconnectFromHost();
+}
+
 bool FileServer::getIsRunning() {
     return isRunning;
 }
@@ -211,6 +245,10 @@ bool FileServer::getIsTransferring() {
 
 QStringList FileServer::getAuthorizedIps() {
     return authorizedIps;
+}
+
+void FileServer::setIsRunning(bool running) {
+    isRunning = running;
 }
 
 void FileServer::setAuthorizedIps(QStringList authorized) {

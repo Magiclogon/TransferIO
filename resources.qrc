@@ -7,5 +7,7 @@
         <file>assets/minus.png</file>
         <file>assets/approved.png</file>
         <file>assets/exchange.png</file>
+        <file>assets/pages/forbidden.html</file>
+        <file>assets/pages/not_found.html</file>
     </qresource>
 </RCC>
