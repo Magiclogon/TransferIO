@@ -9,5 +9,6 @@
         <file>assets/exchange.png</file>
         <file>assets/pages/forbidden.html</file>
         <file>assets/pages/not_found.html</file>
+        <file>assets/pages/home_page.html</file>
     </qresource>
 </RCC>

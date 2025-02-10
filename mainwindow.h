@@ -14,6 +14,7 @@
 #include "file.h"
 #include "aboutdialog.h"
 #include "authorizeipsdialog.h"
+#include <QNetworkInterface>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -78,6 +79,9 @@ private:
     QMap<quint16, ServerInfo> servers;
     QListWidget *serverList;
     QListWidget *fileList;
+
+    // Get the ip address.
+    QMap<QString, QString> getIpAddress();
 
 };
 

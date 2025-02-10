@@ -36,7 +36,10 @@ class FileServer : public QTcpServer
         void handleRequest(QTcpSocket *socket);
         void handleNotAuthorizedRequest(QTcpSocket *socket);
         QString findFilePath(QString fileName, QList<ServerFile> sharedFiles);
+        QList<ServerFile> filterSharedFiles(QString filter, QList<ServerFile> sharedFiles);
         void increaseDownloadCount(QString filePath, QList<ServerFile> *sharedFiles);
+
+        QString constructHomePage(QList<ServerFile> sharedFiles);
 };
 
 #endif // FILESERVER_H

@@ -230,8 +230,22 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Add the main layout to the central widget
     mainLayout->addWidget(splitter);
-    setCentralWidget(centralWidget);
 
+    // Display computer's IP Address.
+    QMap<QString, QString> ipAddresses = getIpAddress();
+
+    QHBoxLayout *interfacesLayout = new QHBoxLayout();
+    QLabel *ipEthLabel = new QLabel("Ethernet Interface: " + ipAddresses["eth"]);
+    QLabel *ipWifiLabel = new QLabel("Wifi Interface: " + ipAddresses["wifi"]);
+
+    interfacesLayout->addWidget(ipEthLabel);
+    interfacesLayout->addWidget(ipWifiLabel);
+
+    mainLayout->addLayout(interfacesLayout);
+    mainLayout->setStretch(0, 99);
+    mainLayout->setStretch(1, 1);
+
+    setCentralWidget(centralWidget);
 
     // Connections
     connect(addServerButton, &QPushButton::clicked, this, &MainWindow::addServer);
@@ -509,4 +523,39 @@ void MainWindow::toggleServersList() {
 void MainWindow::toggleFilesList() {
     bool visible = fileGroup->isVisible();
     fileGroup->setVisible(!visible);
+}
+
+QMap<QString, QString> MainWindow::getIpAddress() {
+    QList<QNetworkInterface> interfaces = QNetworkInterface::allInterfaces();
+    QString wifiIp, ethernetIp;
+    QMap<QString, QString> wifiAndEthIPMap;
+
+    for (const QNetworkInterface &interface : interfaces) {
+        if (interface.flags().testFlag(QNetworkInterface::IsUp) &&
+            interface.flags().testFlag(QNetworkInterface::IsRunning) &&
+            !interface.flags().testFlag(QNetworkInterface::IsLoopBack)) {
+
+            for (const QNetworkAddressEntry &entry : interface.addressEntries()) {
+                if (entry.ip().protocol() == QAbstractSocket::IPv4Protocol) {
+                    QString ip = entry.ip().toString();
+                    QString interfaceName = interface.humanReadableName().toLower();
+
+                    if (interfaceName.contains("eth") || interfaceName.contains("en")) {
+                        wifiAndEthIPMap.insert("eth", ip);
+                    } else if (interfaceName.contains("wlan") || interfaceName.contains("wi")) {
+                        wifiAndEthIPMap.insert("wifi", ip);
+                    }
+                }
+            }
+        }
+    }
+
+    if(!wifiAndEthIPMap.contains("eth")) {
+        wifiAndEthIPMap.insert("eth", "No Interface");
+    }
+    if(!wifiAndEthIPMap.contains("wifi")) {
+        wifiAndEthIPMap.insert("wifi", "No Interface");
+    }
+
+    return wifiAndEthIPMap;
 }

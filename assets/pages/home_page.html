@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Files</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; text-align: center; padding: 20px; }
+        .app { font-size: 15px}
+        h1 { color: #333; }
+        form { margin: 20px 0; }
+        input { padding: 8px; width: 200px; }
+        button { padding: 8px 12px; margin-left: 5px; }
+        table { width: 80%; margin: 20px auto; border-collapse: collapse; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background: #007bff; color: white; }
+        tr:nth-child(even) { background: #f2f2f2; }
+        tr:hover { background: #ddd; }
+        a { text-decoration: none; color: #007bff; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+
+<script>
+    function resetSearch() {
+        window.location.href = "/";
+    }
+</script>
+
+<body>
+
+    <h1 class="app">TransferIO / <a href="https://github.com/Magiclogon" target="_blank">Magiclogon</a></h1>
+
+    <h1>List of Available Files</h1>
+
+    <form action="/search" method="get">
+        <input type="text" name="query" placeholder="Search files..." required>
+        <button type="submit">Search</button>
+        <button type="button" onclick="resetSearch()">Reset</button>
+    </form>
+
+    <table>
+        <tr>
+            <th>File Name</th>
+            <th>Size</th>
+            <th>Download</th>
+        </tr>

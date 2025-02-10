@@ -58,6 +58,7 @@ FileServer::FileServer(QObject *parent) : QTcpServer(parent) {
 
 void FileServer::startServer(quint16 port, QList<ServerFile> *files) {
     if (!this->listen(QHostAddress::Any, port)) {
+        qDebug() << "Couldn't start server.";
     } else {
         qDebug() << "Server started on port:" << port;
         isRunning = true;
@@ -158,41 +159,21 @@ void FileServer::handleRequest(QTcpSocket *socket) {
 
     // If user requests home page.
     else if (request.startsWith("GET")) {
-        QString response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-        response += "<!DOCTYPE html>"
-                    "<html lang='en'>"
-                    "<head>"
-                    "<meta charset='UTF-8'>"
-                    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-                    "<title>Available Files</title>"
-                    "<style>"
-                    "body { font-family: 'Arial', sans-serif; background-color: #f4f4f4; text-align: center; padding: 20px; }"
-                    "h1 { color: #333; }"
-                    "table { width: 80%; margin: 20px auto; border-collapse: collapse; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }"
-                    "th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }"
-                    "th { background: #007bff; color: white; }"
-                    "tr:nth-child(even) { background: #f2f2f2; }"
-                    "tr:hover { background: #ddd; }"
-                    "a { text-decoration: none; color: #007bff; font-weight: bold; }"
-                    "a:hover { text-decoration: underline; }"
-                    "</style>"
-                    "</head>"
-                    "<body>"
-                    "<h1>List of Available Files</h1>"
-                    "<table>"
-                    "<tr><th>File Name</th><th>Size</th><th>Download</th></tr>";
 
-        for (ServerFile &file : *sharedFiles) {
-            QFileInfo fileInfo(file.filePath);
-            QString fileName = fileInfo.fileName();
-            qint64 fileSize = file.fileSize / 1024;
-            response += QString("<tr><td>%1</td><td>%2</td><td><a href='/file/%3'>Download</a></td></tr>")
-                            .arg(fileName)
-                            .arg(QString::number(fileSize) + " kB")
-                            .arg(fileName);
+        QList<ServerFile> listFiles;
+        if(request.startsWith("GET /search?query=")) {
+            QString filter = request.split(' ')[1].mid(14);
+            filter = QUrl::fromPercentEncoding(filter.toUtf8());
+            qDebug() << filter;
+
+            listFiles = filterSharedFiles(filter, *sharedFiles);
+        }
+        else {
+            listFiles = *sharedFiles;
         }
 
-        response += "</table></body></html>";
+        QString response = constructHomePage(listFiles);
+
         socket->write(response.toUtf8());
         socket->disconnectFromHost();
     }
@@ -233,6 +214,52 @@ void FileServer::handleNotAuthorizedRequest(QTcpSocket *socket) {
     socket->write(response.toUtf8());
     socket->waitForBytesWritten();
     socket->disconnectFromHost();
+}
+
+QList<ServerFile> FileServer::filterSharedFiles(QString filter, QList<ServerFile> sharedFiles) {
+    QList<ServerFile> filteredSharedFiles;
+    for(ServerFile file : sharedFiles) {
+        QFileInfo fileInfo(file.filePath);
+        QString fileName = fileInfo.fileName();
+
+        if(fileName.contains(filter, Qt::CaseInsensitive)) {
+            filteredSharedFiles.append(file);
+        }
+    }
+
+    return filteredSharedFiles;
+}
+
+QString FileServer::constructHomePage(QList<ServerFile> sharedFiles) {
+    QString response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+    QFile file(":/assets/pages/home_page.html");
+
+    if(file.open(QIODevice::ReadOnly)) {
+        QTextStream in(&file);
+        QString pageContent = in.readAll();
+        response += pageContent;
+    }
+    else {
+        response += "<html>"
+                    "<body>"
+                    "<h1>List of Available Files</h1>"
+                    "<table>"
+                    "<tr><th>File Name</th><th>Size</th><th>Download</th></tr>";
+    }
+
+    for (ServerFile file : sharedFiles) {
+        QFileInfo fileInfo(file.filePath);
+        QString fileName = fileInfo.fileName();
+        qint64 fileSize = file.fileSize / 1024;
+        response += QString("<tr><td>%1</td><td>%2</td><td><a href='/file/%3'>Download</a></td></tr>")
+                        .arg(fileName)
+                        .arg(QString::number(fileSize) + " kB")
+                        .arg(fileName);
+    }
+
+    response += "</table></body></html>";
+
+    return response;
 }
 
 bool FileServer::getIsRunning() {
